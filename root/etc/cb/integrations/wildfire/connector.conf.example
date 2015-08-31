@@ -11,11 +11,21 @@
 listener_port=3774
 
 ;
+; feed_host
+; the IP address of this machine for Cb to contact with feed requests
+;
+feed_host=127.0.0.1
+
+;
 ; listener_address
 ; ipv4 address to listen; defaults to 127.0.0.1
 ; 0.0.0.0 binds to all interfaces
 ;
 listener_address=0.0.0.0
+
+; wildfire_api_keys
+; API keys (separated by semicolons) used to contact the WildFire API service
+wildfire_api_keys=
 
 ;
 ; Carbon Black Enterprise Server options

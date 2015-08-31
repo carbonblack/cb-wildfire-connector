@@ -60,10 +60,9 @@ class WildfireTest(unittest.TestCase):
         CbAPIProducerThread(self.daemon.work_queue, self.daemon.cb, self.daemon.name, rate_limiter=0,
                             stop_when_done=True).run()
 
-        provider = WildfireProvider('wildfire-test',
-                    os.path.join(test_dir, 'data', 'yara_rules'))
         dirty_flag = threading.Event()
-        t = DeepAnalysisThread(self.daemon.work_queue, self.daemon.cb, provider, dirty_event=dirty_flag)
+        t = DeepAnalysisThread(self.daemon.work_queue, self.daemon.cb, self.daemon.get_provider(),
+                               dirty_event=dirty_flag)
         t.start()
 
         unanalyzed = self.daemon.work_queue.number_unanalyzed()
