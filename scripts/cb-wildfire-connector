@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+
+
+import sys
+
+import cbopensource.connectors.wildfire.bridge as bridge
+from cbopensource.connectors.wildfire import __version__
+
+if __name__ == "__main__":
+    name = "wildfire"
+    daemon = bridge.WildfireConnector(name,
+                                      configfile="/etc/cb/integrations/wildfire/connector.conf",
+                                      work_directory="/usr/share/cb/integrations/wildfire/db")
+    if len(sys.argv) == 2:
+        if 'start' == sys.argv[1]:
+            daemon.start()
+        elif 'stop' == sys.argv[1]:
+            daemon.stop()
+        elif 'restart' == sys.argv[1]:
+            daemon.restart()
+        elif 'version' == sys.argv[1]:
+            print "%s - version %s" % (name, __version__)
+        else:
+            print "Unknown command: %s" % sys.argv[1]
+            sys.exit(2)
+
+    else:
+        print "Usage: %s start|stop|restart|version" % sys.argv[0]
+        sys.exit(2)
+
+    sys.exit(0)
