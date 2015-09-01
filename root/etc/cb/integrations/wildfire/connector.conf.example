@@ -28,6 +28,12 @@ listener_address=0.0.0.0
 wildfire_api_keys=
 
 ;
+; legacy_feed_directory
+; Import feed reports from the old version of the Wildfire connector the first time the new daemon runs.
+;
+legacy_feed_directory=/usr/share/cb/integrations/carbonblack_wildfire_bridge/feed_backup
+
+;
 ; Carbon Black Enterprise Server options
 ;
 

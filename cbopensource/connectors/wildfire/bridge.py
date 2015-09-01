@@ -16,6 +16,7 @@ class WildfireProvider(BinaryAnalysisProvider):
         super(WildfireProvider, self).__init__(name)
         self.api_keys = api_keys
         self.current_api_key_index = 0
+        self.session = requests.Session()
 
     def get_api_key(self):
         for i in range(len(self.api_keys)):
@@ -38,7 +39,7 @@ class WildfireProvider(BinaryAnalysisProvider):
             for apikey in self.get_api_key():
                 url = 'https://wildfire.paloaltonetworks.com/get-report-xml'
                 payload = {'md5': md5, 'apikey': apikey}
-                r = requests.post(url, data=payload)
+                r = self.session.post(url, data=payload)
                 if r.status_code == 200:
                     success = True
                     break
@@ -58,6 +59,9 @@ class WildfireProvider(BinaryAnalysisProvider):
         except AnalysisTemporaryError as e:
             raise
         except Exception as e:
+            import traceback
+            log.debug("Wildfire query exception: %s" % e)
+            log.debug(traceback.format_exc())
             raise AnalysisTemporaryError("an exception occurred while querying wildfire: %s" % e)
         else:
             if success:
@@ -71,14 +75,13 @@ class WildfireProvider(BinaryAnalysisProvider):
         submit a file to the wildfire api
         returns a wildfire submission status code
         """
-        file_bytes = file_stream.read()
         success = False
         try:
             for apikey in self.get_api_key():
                 url = 'https://wildfire.paloaltonetworks.com/submit-file'
                 payload = {'apikey': apikey}
-                files = {'file': ('sample', file_bytes)}
-                r = requests.post(url, data=payload, files=files)
+                files = {'file': ('CarbonBlack_%s' % md5sum, file_stream)}
+                r = self.session.post(url, data=payload, files=files)
                 if r.status_code == 200:
                     success = True
                 elif r.status_code == 419:
@@ -95,6 +98,9 @@ class WildfireProvider(BinaryAnalysisProvider):
         except AnalysisTemporaryError as e:
             raise
         except Exception as e:
+            import traceback
+            log.debug("Wildfire submission exception: %s" % e)
+            log.debug(traceback.format_exc())
             raise AnalysisTemporaryError("an exception occurred while submitting to wildfire: %s" % e)
         else:
             return True
@@ -132,7 +138,7 @@ class WildfireConnector(DetonationDaemon):
 
     @property
     def num_quick_scan_threads(self):
-        return 0
+        return 1
 
     @property
     def num_deep_scan_threads(self):
@@ -143,7 +149,6 @@ class WildfireConnector(DetonationDaemon):
         return wildfire_provider
 
     def get_metadata(self):
-        # TODO: finish
         return cbint.utils.feed.generate_feed(self.name, summary="PaloAlto Wildfire cloud binary feed",
                         tech_data=("There are no requirements to share any data with Carbon Black to use this feed. "
                                    "However, binaries may be shared with Palo Alto."),
