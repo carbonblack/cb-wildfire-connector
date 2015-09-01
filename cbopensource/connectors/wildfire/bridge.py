@@ -60,8 +60,8 @@ class WildfireProvider(BinaryAnalysisProvider):
             raise
         except Exception as e:
             import traceback
-            log.debug("Wildfire query exception: %s" % e)
-            log.debug(traceback.format_exc())
+            log.error("Wildfire query exception: %s" % e)
+            log.error(traceback.format_exc())
             raise AnalysisTemporaryError("an exception occurred while querying wildfire: %s" % e)
         else:
             if success:
@@ -99,8 +99,8 @@ class WildfireProvider(BinaryAnalysisProvider):
             raise
         except Exception as e:
             import traceback
-            log.debug("Wildfire submission exception: %s" % e)
-            log.debug(traceback.format_exc())
+            log.error("Wildfire submission exception: %s" % e)
+            log.error(traceback.format_exc())
             raise AnalysisTemporaryError("an exception occurred while submitting to wildfire: %s" % e)
         else:
             return True
