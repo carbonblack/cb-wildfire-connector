@@ -1,6 +1,6 @@
 %define name python-cb-wildfire-connector
-%define version 2.0
-%define unmangled_version 2.0
+%define version 2.1
+%define unmangled_version 2.1
 %define release 1
 %global _enable_debug_package 0
 %global debug_package %{nil}
@@ -34,9 +34,7 @@ python setup.py install_cb --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post
-#!/bin/sh
-
+%posttrans
 mkdir -p /usr/share/cb/integrations/wildfire/db
 chkconfig --add cb-wildfire-connector
 chkconfig --level 345 cb-wildfire-connector on
@@ -46,11 +44,14 @@ chkconfig --level 345 cb-wildfire-connector on
 
 
 %preun
-#!/bin/sh
-
 /etc/init.d/cb-wildfire-connector stop
 
-chkconfig --del cb-wildfire-connector
+# only delete the chkconfig entry when we uninstall for the last time,
+# not on upgrades
+if [ "X$1" = "X0" ]
+then
+    chkconfig --del cb-wildfire-connector
+fi
 
 
 %files -f INSTALLED_FILES

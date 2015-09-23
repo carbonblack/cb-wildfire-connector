@@ -12,8 +12,12 @@ yum install python-cb-wildfire-connector
 Once the software is installed via YUM, copy the `/etc/cb/integrations/wildfire/connector.conf.example` file to
 `/etc/cb/integrations/wildfire/connector.conf`. Edit this file and place your Carbon Black API key into the
 `carbonblack_server_token` variable and your Carbon Black server's base URL into the `carbonblack_server_url` variable.
+Next, add your WildFire API keys to the `wildfire_api_keys` variable. If you have multiple keys, they can be separated
+by a semicolon (`;`).
 
-Any errors will be logged into `/var/log/cb/integrations/wildfire/wildfire.log`.
+Once the software is configured, then you can start the connector via `service cb-wildfire-connector start`.
+Any errors will be logged into `/var/log/cb/integrations/wildfire/wildfire.log`. The connector will automatically
+create a feed in the connected Carbon Black server's console.
 
 ## Troubleshooting
 
