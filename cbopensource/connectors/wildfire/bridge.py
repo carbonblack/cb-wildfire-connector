@@ -4,7 +4,6 @@ from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider, Anal
 import cbint.utils.feed
 import time
 import logging
-import os
 import requests
 
 
@@ -12,9 +11,11 @@ log = logging.getLogger(__name__)
 
 
 class WildfireProvider(BinaryAnalysisProvider):
-    def __init__(self, name, api_keys):
+    def __init__(self, name, wildfire_url, wildfire_ssl_verify, api_keys):
         super(WildfireProvider, self).__init__(name)
         self.api_keys = api_keys
+        self.wildfire_url = wildfire_url
+        self.wildfire_ssl_verify = wildfire_ssl_verify
         self.current_api_key_index = 0
         self.session = requests.Session()
 
@@ -37,8 +38,8 @@ class WildfireProvider(BinaryAnalysisProvider):
         success = False
         try:
             for apikey in self.get_api_key():
-                url = 'https://wildfire.paloaltonetworks.com/get-report-xml'
-                payload = {'md5': md5, 'apikey': apikey}
+                url = self.wildfire_url + "/publicapi/get/report"
+                payload = {'hash': md5, 'apikey': apikey, 'format': 'xml'}
                 r = self.session.post(url, data=payload)
                 if r.status_code == 200:
                     success = True
@@ -78,7 +79,7 @@ class WildfireProvider(BinaryAnalysisProvider):
         success = False
         try:
             for apikey in self.get_api_key():
-                url = 'https://wildfire.paloaltonetworks.com/submit-file'
+                url = self.wildfire_url + "/publicapi/submit/file"
                 payload = {'apikey': apikey}
                 files = {'file': ('CarbonBlack_%s' % md5sum, file_stream)}
                 r = self.session.post(url, data=payload, files=files)
@@ -145,7 +146,7 @@ class WildfireConnector(DetonationDaemon):
         return 4
 
     def get_provider(self):
-        wildfire_provider = WildfireProvider(self.name, self.api_keys)
+        wildfire_provider = WildfireProvider(self.name, self.wildfire_url, self.wildfire_ssl_verify, self.api_keys)
         return wildfire_provider
 
     def get_metadata(self):
@@ -162,19 +163,34 @@ class WildfireConnector(DetonationDaemon):
         keys = self.get_config_string("wildfire_api_keys", None)
         if not keys:
             raise ConfigurationError("WildFire API keys must be specified in the wildfire_api_keys option")
-
         self.api_keys = keys.split(';')
+
+        wildfire_url = self.get_config_string("wildfire_url", "https://wildfire.paloaltonetworks.com")
+        self.wildfire_url = wildfire_url.rstrip("/")
+
+        self.wildfire_ssl_verify = self.get_config_boolean("wildfire_verify_ssl", True)
 
         return True
 
 
 if __name__ == '__main__':
     import os
+    import yappi
+
+    yappi.start()
 
     my_path = os.path.dirname(os.path.abspath(__file__))
     temp_directory = "/tmp/wildfire"
 
     config_path = os.path.join(my_path, "testing.conf")
-    daemon = WildfireConnector('wildfiretest', configfile=config_path, work_directory=temp_directory,
-                                logfile=os.path.join(temp_directory, 'test.log'), debug=True)
-    daemon.start()
+    try:
+        daemon = WildfireConnector('wildfiretest', configfile=config_path, work_directory=temp_directory,
+                                    logfile=os.path.join(temp_directory, 'test.log'), debug=True)
+        daemon.start()
+    except:
+        yappi.get_func_stats().print_all()
+
+
+    yappi.get_func_stats().print_all()
+    yappi.get_thread_stats().print_all()
+
