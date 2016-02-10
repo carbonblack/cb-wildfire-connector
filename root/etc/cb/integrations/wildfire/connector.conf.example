@@ -27,6 +27,14 @@ listener_address=0.0.0.0
 ; API keys (separated by semicolons) used to contact the WildFire API service
 wildfire_api_keys=
 
+; wildfire_url
+; URL for the WildFire appliance. Leave commented out to use the cloud-based WildFire service.
+; wildfire_url=https://my.local.wildfire.appliance
+
+; wildfire_verify_ssl
+; Uncomment and set to False when using a local WildFire appliance with a self-signed SSL certificate.
+; wildfire_verify_ssl=false
+
 ;
 ; legacy_feed_directory
 ; Import feed reports from the old version of the Wildfire connector the first time the new daemon runs.

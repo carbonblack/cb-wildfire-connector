@@ -39,8 +39,8 @@ class WildfireProvider(BinaryAnalysisProvider):
         try:
             for apikey in self.get_api_key():
                 url = self.wildfire_url + "/publicapi/get/report"
-                payload = {'hash': md5, 'apikey': apikey, 'format': 'xml'}
-                r = self.session.post(url, data=payload)
+                payload = {'hash': md5.lower(), 'apikey': apikey, 'format': 'xml'}
+                r = self.session.post(url, data=payload, verify=self.wildfire_ssl_verify)
                 if r.status_code == 200:
                     success = True
                     break
@@ -52,6 +52,7 @@ class WildfireProvider(BinaryAnalysisProvider):
                     log.info("API key %s unauthorized, trying next key" % apikey)
                 else:
                     log.info("Received unknown HTTP status code %d from WildFire" % r.status_code)
+                    log.info("-> response content: %s" % r.content)
                     raise AnalysisTemporaryError("Received unknown HTTP status code %d from WildFire" % r.status_code,
                                                  retry_in=120)
 
@@ -82,7 +83,7 @@ class WildfireProvider(BinaryAnalysisProvider):
                 url = self.wildfire_url + "/publicapi/submit/file"
                 payload = {'apikey': apikey}
                 files = {'file': ('CarbonBlack_%s' % md5sum, file_stream)}
-                r = self.session.post(url, data=payload, files=files)
+                r = self.session.post(url, data=payload, files=files, verify=self.wildfire_ssl_verify)
                 if r.status_code == 200:
                     success = True
                 elif r.status_code == 419:
@@ -170,27 +171,27 @@ class WildfireConnector(DetonationDaemon):
 
         self.wildfire_ssl_verify = self.get_config_boolean("wildfire_verify_ssl", True)
 
+        log.info("connecting to WildFire server at %s with API keys %s" % (self.wildfire_url, self.api_keys))
+
         return True
 
 
 if __name__ == '__main__':
     import os
     import yappi
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
 
-    yappi.start()
+#    yappi.start()
 
     my_path = os.path.dirname(os.path.abspath(__file__))
     temp_directory = "/tmp/wildfire"
 
     config_path = os.path.join(my_path, "testing.conf")
-    try:
-        daemon = WildfireConnector('wildfiretest', configfile=config_path, work_directory=temp_directory,
+    daemon = WildfireConnector('wildfiretest', configfile=config_path, work_directory=temp_directory,
                                     logfile=os.path.join(temp_directory, 'test.log'), debug=True)
-        daemon.start()
-    except:
-        yappi.get_func_stats().print_all()
+    daemon.start()
 
-
-    yappi.get_func_stats().print_all()
-    yappi.get_thread_stats().print_all()
+#    yappi.get_func_stats().print_all()
+#    yappi.get_thread_stats().print_all()
 
