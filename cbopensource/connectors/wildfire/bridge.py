@@ -1,10 +1,12 @@
 from cbint.utils.detonation import DetonationDaemon, ConfigurationError
 from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider, AnalysisPermanentError,
-                                                    AnalysisTemporaryError, AnalysisResult)
+                                                    AnalysisTemporaryError, AnalysisResult, AnalysisInProgress)
 import cbint.utils.feed
 import time
 import logging
 import requests
+
+from xml.etree import ElementTree
 
 
 log = logging.getLogger(__name__)
@@ -38,12 +40,11 @@ class WildfireProvider(BinaryAnalysisProvider):
         success = False
         try:
             for apikey in self.get_api_key():
-                url = self.wildfire_url + "/publicapi/get/report"
-                payload = {'hash': md5.lower(), 'apikey': apikey, 'format': 'xml'}
+                url = self.wildfire_url + "/publicapi/get/verdict"
+                payload = {'hash': md5.lower(), 'apikey': apikey}
                 r = self.session.post(url, data=payload, verify=self.wildfire_ssl_verify)
                 if r.status_code == 200:
                     success = True
-                    break
                 elif r.status_code == 404:
                     return None                # can't find the binary
                 elif r.status_code == 419:
@@ -61,16 +62,36 @@ class WildfireProvider(BinaryAnalysisProvider):
         except AnalysisTemporaryError as e:
             raise
         except Exception as e:
-            import traceback
-            log.error("Wildfire query exception: %s" % e)
-            log.error(traceback.format_exc())
+            log.exception("Wildfire query exception: %s" % e)
             raise AnalysisTemporaryError("an exception occurred while querying wildfire: %s" % e)
-        else:
-            if success:
-                if r.text.find('<malware>yes</malware>') >= 0:
+
+        try:
+            response = ElementTree.fromstring(r.content)
+
+            # Return 0 Benign verdict
+            # 1 Malware verdict
+            # 2 Grayware verdict
+            # -100 Verdict is pending
+            # -101 Indicates a file error
+            # -102 The file could not be found
+            # -103 The hash submitted is invalid
+            if md5.lower() == response.findtext("./get-verdict-info/md5").lower():
+                verdict = response.findtext("./get-verdict-info/verdict").strip()
+                if verdict == "-100":
+                    return AnalysisInProgress()
+                elif verdict == "-102":
+                    return None                # file couldn't be found
+                elif verdict.startswith("-"):
+                    raise AnalysisPermanentError("WildFire could not process file: error %s" % verdict)
+                elif verdict == "1":
                     return AnalysisResult(score=100)
+                elif verdict == "2":
+                    return AnalysisResult(score=50)
                 else:
                     return AnalysisResult(score=0)
+        except Exception as e:
+            log.exception("Exception parsing WildFire response: %s" % e)
+            raise AnalysisTemporaryError("an exception occurred while parsing wildfire response: %s" % e)
 
     def submit_wildfire(self, md5sum, file_stream):
         """
