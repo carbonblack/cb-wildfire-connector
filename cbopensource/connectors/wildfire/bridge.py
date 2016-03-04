@@ -12,14 +12,19 @@ from xml.etree import ElementTree
 log = logging.getLogger(__name__)
 
 
+class WildFireAPIError(Exception):
+    pass
+
+
 class WildfireProvider(BinaryAnalysisProvider):
-    def __init__(self, name, wildfire_url, wildfire_ssl_verify, api_keys):
+    def __init__(self, name, wildfire_url, wildfire_ssl_verify, api_keys, work_directory):
         super(WildfireProvider, self).__init__(name)
         self.api_keys = api_keys
         self.wildfire_url = wildfire_url
         self.wildfire_ssl_verify = wildfire_ssl_verify
         self.current_api_key_index = 0
         self.session = requests.Session()
+        self.work_directory = work_directory
 
     def get_api_key(self):
         for i in range(len(self.api_keys)):
@@ -30,43 +35,63 @@ class WildfireProvider(BinaryAnalysisProvider):
 
         # if we've gotten here, we have no more keys to give.
 
-    def query_wildfire(self, md5):
-        """
-        query the wildfire api to get a report on an md5
-        returns a dictionary
-            status_code: the wildfire api status code
-            malware: 1 if determined to be malware, otherwise 0
-        """
+    def _call_wildfire_api(self, method, path, payload=None, files=None):
+        if method not in ['GET', 'POST']:
+            raise Exception("invalid method: %s" % method)
+
+        url = self.wildfire_url + path
         success = False
-        try:
+        if method == 'GET':
+            try:
+                r = self.session.get(url, verify=self.wildfire_ssl_verify)
+            except Exception as e:
+                log.exception("Exception when sending WildFire API GET request: %s" % e)
+                raise
+
+            success = True
+        else:
             for apikey in self.get_api_key():
-                url = self.wildfire_url + "/publicapi/get/verdict"
-                payload = {'hash': md5.lower(), 'apikey': apikey}
-                r = self.session.post(url, data=payload, verify=self.wildfire_ssl_verify)
-                if r.status_code == 200:
-                    success = True
-                elif r.status_code == 404:
-                    return None                # can't find the binary
-                elif r.status_code == 419:
+                if type(payload) != dict:
+                    payload = {}
+
+                payload["apikey"] = apikey
+                try:
+                    r = self.session.post(url, data=payload, files=files, verify=self.wildfire_ssl_verify)
+                except Exception as e:
+                    log.exception("Exception when sending WildFire API query: %s" % e)
+                    # bubble this up as necessary
+                    raise
+
+                if r.status_code == 419:
                     log.info("API query quota reached for key %s, trying next key" % apikey)
                 elif r.status_code == 401:
                     log.info("API key %s unauthorized, trying next key" % apikey)
                 else:
-                    log.info("Received unknown HTTP status code %d from WildFire" % r.status_code)
-                    log.info("-> response content: %s" % r.content)
-                    raise AnalysisTemporaryError("Received unknown HTTP status code %d from WildFire" % r.status_code,
-                                                 retry_in=120)
+                    success = True
+                    break
 
-            if not success:
-                raise AnalysisTemporaryError("No working WildFire API keys", retry_in=120)
-        except AnalysisTemporaryError as e:
-            raise
-        except Exception as e:
-            log.exception("Wildfire query exception: %s" % e)
-            raise AnalysisTemporaryError("an exception occurred while querying wildfire: %s" % e)
+        if success:
+            return r.status_code, r.content
+        else:
+            raise WildFireAPIError("Error when performing %s %s" % (method, url))
+
+    def query_wildfire(self, md5):
+        """
+        query the wildfire api to get a report on an md5
+        """
+        status_code, content = self._call_wildfire_api("POST", "/publicapi/get/verdict",
+                                                       {'hash': md5.lower()})
+
+        if status_code == 404:
+            return None                       # can't find the binary
+        elif status_code != 200:
+            log.info("Received unknown HTTP status code %d from WildFire" % status_code)
+            log.info("-> response content: %s" % content)
+            raise AnalysisTemporaryError("Received unknown HTTP status code %d from WildFire" % status_code,
+                                         retry_in=120)
 
         try:
-            response = ElementTree.fromstring(r.content)
+            response = ElementTree.fromstring(content)
 
             # Return 0 Benign verdict
             # 1 Malware verdict
@@ -84,49 +109,42 @@ class WildfireProvider(BinaryAnalysisProvider):
                 elif verdict.startswith("-"):
                     raise AnalysisPermanentError("WildFire could not process file: error %s" % verdict)
                 elif verdict == "1":
-                    return AnalysisResult(score=100)
+                    return self.generate_malware_result(md5, 100)
                 elif verdict == "2":
-                    return AnalysisResult(score=50)
+                    return self.generate_malware_result(md5, 50)
                 else:
                     return AnalysisResult(score=0)
         except Exception as e:
             log.exception("Exception parsing WildFire response: %s" % e)
             raise AnalysisTemporaryError("an exception occurred while parsing wildfire response: %s" % e)
 
+    def generate_malware_result(self, md5, score):
+        status_code, content = self._call_wildfire_api("POST", "/publicapi/get/report",
+                                                       {'hash': md5.lower(), "format": "pdf"})
+
+        if status_code == 200:
+            open(os.path.join(self.work_directory, md5.upper()) + ".pdf", 'wb').write(content)
+            return AnalysisResult(score=score, link="/reports/%s.pdf" % md5.upper())
+        else:
+            return AnalysisResult(score=score)
+
     def submit_wildfire(self, md5sum, file_stream):
         """
         submit a file to the wildfire api
         returns a wildfire submission status code
         """
-        success = False
-        try:
-            for apikey in self.get_api_key():
-                url = self.wildfire_url + "/publicapi/submit/file"
-                payload = {'apikey': apikey}
-                files = {'file': ('CarbonBlack_%s' % md5sum, file_stream)}
-                r = self.session.post(url, data=payload, files=files, verify=self.wildfire_ssl_verify)
-                if r.status_code == 200:
-                    success = True
-                elif r.status_code == 419:
-                    log.info("API query quota reached for key %s, trying next key" % apikey)
-                elif r.status_code == 401:
-                    log.info("API key %s unauthorized, trying next key" % apikey)
-                else:
-                    log.info("Received unknown HTTP status code %d from WildFire" % r.status_code)
-                    raise AnalysisTemporaryError("Received unknown HTTP status code %d from WildFire" % r.status_code,
-                                                 retry_in=120)
 
-            if not success:
-                raise AnalysisTemporaryError("No working WildFire API keys", retry_in=120)
-        except AnalysisTemporaryError as e:
-            raise
+        files = {'file': ('CarbonBlack_%s' % md5sum, file_stream)}
+        try:
+            status_code, content = self._call_wildfire_api("POST", "/publicapi/submit/file", files=files)
         except Exception as e:
-            import traceback
-            log.error("Wildfire submission exception: %s" % e)
-            log.error(traceback.format_exc())
-            raise AnalysisTemporaryError("an exception occurred while submitting to wildfire: %s" % e)
+            log.exception("Exception while submitting MD5 %s to WildFire: %s" % (md5sum, e))
+            raise AnalysisTemporaryError("Exception while submitting to WildFire: %s" % e)
         else:
-            return True
+            if status_code == 200:
+                return True
+            else:
+                raise AnalysisTemporaryError("Received HTTP error code %d while submitting to WildFire" % status_code)
 
     def check_result_for(self, md5sum):
         return self.query_wildfire(md5sum)
@@ -168,7 +186,8 @@ class WildfireConnector(DetonationDaemon):
         return 4
 
     def get_provider(self):
-        wildfire_provider = WildfireProvider(self.name, self.wildfire_url, self.wildfire_ssl_verify, self.api_keys)
+        wildfire_provider = WildfireProvider(self.name, self.wildfire_url, self.wildfire_ssl_verify, self.api_keys,
+                                             self.work_directory)
         return wildfire_provider
 
     def get_metadata(self):
