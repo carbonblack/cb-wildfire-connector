@@ -7,6 +7,7 @@ import logging
 import requests
 
 from xml.etree import ElementTree
+import os
 
 
 log = logging.getLogger(__name__)

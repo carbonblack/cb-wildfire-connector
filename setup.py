@@ -101,10 +101,11 @@ class install_cb(Command):
             dir = os.path.dirname(dir)
             dir = change_root(self.root, dir)
             self.mkpath(dir)
+            dir = os.path.join(dir, scriptname)
 
             data = os.path.join('dist', scriptname)
-            (out, _) = self.copy_file(data, dir, preserve_mode=True)
-            self.outfiles.append(out)
+            out = self.copy_tree(data, dir, preserve_mode=True)
+            self.outfiles.extend(out)
 
         if self.record:
             outputs = self.get_outputs()
@@ -116,7 +117,6 @@ class install_cb(Command):
                          (self.record, outputs),
                          "writing list of installed files to '%s'" %
                          self.record)
-
 
     def get_inputs(self):
         return self.data_files or []
