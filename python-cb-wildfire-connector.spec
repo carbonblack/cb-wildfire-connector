@@ -1,6 +1,6 @@
 %define name python-cb-wildfire-connector
-%define version 2.2
-%define unmangled_version 2.2
+%define version 2.3
+%define unmangled_version 2.3
 %define release 2
 %global _enable_debug_package 0
 %global debug_package %{nil}
