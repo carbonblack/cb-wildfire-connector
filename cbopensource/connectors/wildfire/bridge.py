@@ -91,33 +91,29 @@ class WildfireProvider(BinaryAnalysisProvider):
             raise AnalysisTemporaryError("Received unknown HTTP status code %d from WildFire" % status_code,
                                          retry_in=120)
 
-        try:
-            response = ElementTree.fromstring(content)
+        response = ElementTree.fromstring(content)
 
-            # Return 0 Benign verdict
-            # 1 Malware verdict
-            # 2 Grayware verdict
-            # -100 Verdict is pending
-            # -101 Indicates a file error
-            # -102 The file could not be found
-            # -103 The hash submitted is invalid
-            if md5.lower() == response.findtext("./get-verdict-info/md5").lower():
-                verdict = response.findtext("./get-verdict-info/verdict").strip()
-                if verdict == "-100":
-                    return AnalysisInProgress()
-                elif verdict == "-102":
-                    return None                # file couldn't be found
-                elif verdict.startswith("-"):
-                    raise AnalysisPermanentError("WildFire could not process file: error %s" % verdict)
-                elif verdict == "1":
-                    return self.generate_malware_result(md5, 100)
-                elif verdict == "2":
-                    return self.generate_malware_result(md5, 50)
-                else:
-                    return AnalysisResult(score=0)
-        except Exception as e:
-            log.exception("Exception parsing WildFire response: %s" % e)
-            raise AnalysisTemporaryError("an exception occurred while parsing wildfire response: %s" % e)
+        # Return 0 Benign verdict
+        # 1 Malware verdict
+        # 2 Grayware verdict
+        # -100 Verdict is pending
+        # -101 Indicates a file error
+        # -102 The file could not be found
+        # -103 The hash submitted is invalid
+        if md5.lower() == response.findtext("./get-verdict-info/md5").lower():
+            verdict = response.findtext("./get-verdict-info/verdict").strip()
+            if verdict == "-100":
+                return None                # waiting for WildFire verdict
+            elif verdict == "-102":
+                return None                # file not in WildFire yet
+            elif verdict.startswith("-"):
+                raise AnalysisPermanentError("WildFire could not process file: error %s" % verdict)
+            elif verdict == "1":
+                return self.generate_malware_result(md5, 100)
+            elif verdict == "2":
+                return self.generate_malware_result(md5, 50)
+            else:
+                return AnalysisResult(score=0)
 
     def generate_malware_result(self, md5, score):
         status_code, content = self._call_wildfire_api("POST", "/publicapi/get/report",
@@ -219,7 +215,7 @@ class WildfireConnector(DetonationDaemon):
 
 if __name__ == '__main__':
     import os
-    import yappi
+#    import yappi
     import logging
     logging.basicConfig(level=logging.DEBUG)
 
