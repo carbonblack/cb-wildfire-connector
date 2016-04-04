@@ -2,3 +2,4 @@ cbapi == 0.8.0
 -e git://github.com/carbonblack/cbfeeds.git#egg=cbfeeds
 -e git://github.com/carbonblack/cb-integration.git#egg=cbint
 requests >= 2.7.0
+lxml >= 3.6.0

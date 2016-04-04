@@ -10,7 +10,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-exec="/usr/share/cb/integrations/wildfire/cb-wildfire-connector"
+exec="/usr/share/cb/integrations/wildfire/cb-wildfire-connector/cb-wildfire-connector"
 prog="cb-wildfire-connector"
 pidfile="/var/run/cb/integrations/wildfire.pid"
 
