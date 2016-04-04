@@ -1,7 +1,7 @@
 # -*- mode: python -*-
 a = Analysis(['scripts/cb-wildfire-connector'],
              pathex=['.'],
-             hiddenimports=['unicodedata'],
+             hiddenimports=['unicodedata', 'xml.etree', 'xml.etree.ElementTree'],
              hookspath=None,
              runtime_hooks=None)
 pyz = PYZ(a.pure)

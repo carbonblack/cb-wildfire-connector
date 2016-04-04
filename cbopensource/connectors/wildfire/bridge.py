@@ -6,7 +6,7 @@ import time
 import logging
 import requests
 
-from xml.etree import ElementTree
+from lxml import etree
 import os
 
 
@@ -76,12 +76,14 @@ class WildfireProvider(BinaryAnalysisProvider):
         else:
             raise WildFireAPIError("Error when performing %s %s" % (method, url))
 
-    def query_wildfire(self, md5):
+    def query_wildfire(self, md5sum):
         """
         query the wildfire api to get a report on an md5
         """
+        log.info("Querying wildfire for md5sum %s" % md5sum)
+
         status_code, content = self._call_wildfire_api("POST", "/publicapi/get/verdict",
-                                                       {'hash': md5.lower()})
+                                                       {'hash': md5sum.lower()})
 
         if status_code == 404:
             return None                       # can't find the binary
@@ -91,7 +93,7 @@ class WildfireProvider(BinaryAnalysisProvider):
             raise AnalysisTemporaryError("Received unknown HTTP status code %d from WildFire" % status_code,
                                          retry_in=120)
 
-        response = ElementTree.fromstring(content)
+        response = etree.fromstring(content)
 
         # Return 0 Benign verdict
         # 1 Malware verdict
@@ -100,7 +102,7 @@ class WildfireProvider(BinaryAnalysisProvider):
         # -101 Indicates a file error
         # -102 The file could not be found
         # -103 The hash submitted is invalid
-        if md5.lower() == response.findtext("./get-verdict-info/md5").lower():
+        if md5sum.lower() == response.findtext("./get-verdict-info/md5").lower():
             verdict = response.findtext("./get-verdict-info/verdict").strip()
             if verdict == "-100":
                 return None                # waiting for WildFire verdict
@@ -109,9 +111,9 @@ class WildfireProvider(BinaryAnalysisProvider):
             elif verdict.startswith("-"):
                 raise AnalysisPermanentError("WildFire could not process file: error %s" % verdict)
             elif verdict == "1":
-                return self.generate_malware_result(md5, 100)
+                return self.generate_malware_result(md5sum, 100)
             elif verdict == "2":
-                return self.generate_malware_result(md5, 50)
+                return self.generate_malware_result(md5sum, 50)
             else:
                 return AnalysisResult(score=0)
 
