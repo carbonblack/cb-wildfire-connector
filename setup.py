@@ -101,7 +101,6 @@ class install_cb(Command):
             dir = os.path.dirname(dir)
             dir = change_root(self.root, dir)
             self.mkpath(dir)
-            dir = os.path.join(dir, scriptname)
 
             data = os.path.join('dist', scriptname)
             out = self.copy_tree(data, dir, preserve_mode=True)
@@ -143,7 +142,7 @@ data_files.append('scripts/cb-wildfire-connector')
 scripts = {
     'cb-wildfire-connector': {
         'spec': 'cb-wildfire-connector.spec',
-        'dest': '/usr/share/cb/integrations/wildfire/cb-wildfire-connector'
+        'dest': '/usr/share/cb/integrations/wildfire/bin/'
     }
 }
 
