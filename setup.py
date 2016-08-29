@@ -148,7 +148,7 @@ scripts = {
 
 setup(
     name='python-cb-wildfire-connector',
-    version='2.3',
+    version='2.4',
     packages=['cbopensource', 'cbopensource.connectors', 'cbopensource.connectors.wildfire'],
     url='https://github.com/carbonblack/cb-wildfire-connector',
     license='MIT',
