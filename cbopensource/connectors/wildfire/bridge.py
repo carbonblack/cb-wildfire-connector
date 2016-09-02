@@ -4,17 +4,13 @@ from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider, Anal
 import cbint.utils.feed
 import time
 import logging
-import requests
+
+from api_request import APISession
 
 from lxml import etree
-import os
 
 
 log = logging.getLogger(__name__)
-
-
-class WildFireAPIError(Exception):
-    pass
 
 
 class WildfireProvider(BinaryAnalysisProvider):
@@ -24,7 +20,7 @@ class WildfireProvider(BinaryAnalysisProvider):
         self.wildfire_url = wildfire_url
         self.wildfire_ssl_verify = wildfire_ssl_verify
         self.current_api_key_index = 0
-        self.session = requests.Session()
+        self.session = APISession(api_keys=self.api_keys, throttle_per_minute=120)
         self.work_directory = work_directory
 
     def get_api_key(self):
@@ -37,11 +33,8 @@ class WildfireProvider(BinaryAnalysisProvider):
         # if we've gotten here, we have no more keys to give.
 
     def _call_wildfire_api(self, method, path, payload=None, files=None):
-        if method not in ['GET', 'POST']:
-            raise Exception("invalid method: %s" % method)
-
         url = self.wildfire_url + path
-        success = False
+
         if method == 'GET':
             try:
                 r = self.session.get(url, verify=self.wildfire_ssl_verify)
@@ -49,32 +42,15 @@ class WildfireProvider(BinaryAnalysisProvider):
                 log.exception("Exception when sending WildFire API GET request: %s" % e)
                 raise
 
-            success = True
-        else:
-            for apikey in self.get_api_key():
-                if type(payload) != dict:
-                    payload = {}
-
-                payload["apikey"] = apikey
-                try:
-                    r = self.session.post(url, data=payload, files=files, verify=self.wildfire_ssl_verify)
-                except Exception as e:
-                    log.exception("Exception when sending WildFire API query: %s" % e)
-                    # bubble this up as necessary
-                    raise
-
-                if r.status_code == 419:
-                    log.info("API query quota reached for key %s, trying next key" % apikey)
-                elif r.status_code == 401:
-                    log.info("API key %s unauthorized, trying next key" % apikey)
-                else:
-                    success = True
-                    break
-
-        if success:
             return r.status_code, r.content
-        else:
-            raise WildFireAPIError("Error when performing %s %s" % (method, url))
+        elif method == 'POST':
+            try:
+                r = self.session.post(url, data=payload, files=files, verify=self.wildfire_ssl_verify)
+            except Exception as e:
+                log.exception("Exception when sending WildFire API query: %s" % e)
+                # bubble this up as necessary
+                raise
+            return r.status_code, r.content
 
     def query_wildfire(self, md5sum):
         """
