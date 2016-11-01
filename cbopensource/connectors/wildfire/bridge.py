@@ -4,6 +4,7 @@ from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider, Anal
 import cbint.utils.feed
 import time
 import logging
+import os
 
 from api_request import APISession
 
@@ -192,7 +193,6 @@ class WildfireConnector(DetonationDaemon):
 
 
 if __name__ == '__main__':
-    import os
 #    import yappi
     import logging
     logging.basicConfig(level=logging.DEBUG)
