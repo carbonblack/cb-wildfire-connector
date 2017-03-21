@@ -23,6 +23,7 @@ class APISession(Session):
 
         self.api_keys = api_keys
         self.current_api_key_index = 0
+        self.current_api_key_index_lock = Lock()
 
         self.request_lock = Lock()
 
@@ -85,13 +86,19 @@ class APISession(Session):
         return super(APISession, self).send(request, **kwargs)
 
     def increment_api_key(self):
+        #
         # API key quota exceeded
+        #
         log.info("Reached quota for API key {0}".format(self.api_keys[self.current_api_key_index]))
-        self.current_api_key_index += 1
-        if self.current_api_key_index == len(self.api_keys):
-            # we've tried all our API keys, so we have to wait...
-            self.set_wait_time()
-            self.current_api_key_index = 0
+        with self.current_api_key_index_lock:
+            if self.current_api_key_index + 1 >= len(self.api_keys):
+                # we've tried all our API keys, so we have to wait...
+                self.set_wait_time()
+                self.current_api_key_index = 0
+            else:
+                log.info("Switching API key from Index: {}".format(self.current_api_key_index))
+                self.current_api_key_index += 1
+                log.info("Switched API key to Index: {}".format(self.current_api_key_index))
 
     def set_wait_time(self):
         if self.wait_until:
