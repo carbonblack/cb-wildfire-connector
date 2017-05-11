@@ -1,5 +1,5 @@
 cbapi == 0.8.1
-cbint == 0.8.3
+cbint == 0.8.5
 cbfeeds == 0.8.0
 requests >= 2.7.0
 lxml >= 3.6.0
