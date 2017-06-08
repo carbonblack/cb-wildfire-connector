@@ -154,6 +154,10 @@ class WildfireConnector(DetonationDaemon):
         return ' '.join(filters)
 
     @property
+    def integration_name(self):
+        return 'Cb Wildfire Connector 2.5.4'
+
+    @property
     def num_quick_scan_threads(self):
         return 1
 
