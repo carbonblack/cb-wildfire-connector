@@ -155,7 +155,7 @@ class WildfireConnector(DetonationDaemon):
 
     @property
     def integration_name(self):
-        return 'Cb Wildfire Connector 2.5.5'
+        return 'Cb Wildfire Connector 2.5.6'
 
     @property
     def num_quick_scan_threads(self):
