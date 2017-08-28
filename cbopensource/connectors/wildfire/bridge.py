@@ -2,9 +2,11 @@ from cbint.utils.detonation import DetonationDaemon, ConfigurationError
 from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider, AnalysisPermanentError,
                                                     AnalysisTemporaryError, AnalysisResult, AnalysisInProgress)
 import cbint.utils.feed
+from cbapi.connection import CbAPISessionAdapter
 import time
 import logging
 import os
+import sys
 
 from api_request import APISession
 
@@ -22,6 +24,8 @@ class WildfireProvider(BinaryAnalysisProvider):
         self.wildfire_ssl_verify = wildfire_ssl_verify
         self.current_api_key_index = 0
         self.session = APISession(api_keys=self.api_keys, throttle_per_minute=120)
+        tls_adapter = CbAPISessionAdapter(force_tls_1_2=True)
+        self.session.mount("https://", tls_adapter)
         self.work_directory = work_directory
 
     def get_api_key(self):
