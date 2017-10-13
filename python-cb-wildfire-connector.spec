@@ -1,7 +1,7 @@
 %define name python-cb-wildfire-connector
 %define version 2.5
 %define unmangled_version 2.5
-%define release 8
+%define release 9
 %global _enable_debug_package 0
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
