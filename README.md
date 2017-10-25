@@ -45,7 +45,7 @@ E-mail: dev-support@bit9.com
 
 ### Reporting Problems
 
-When you contact Bit9 Developer Relations Technical Support with an issue, please provide the following:
+When you contact Carbon Black Developer Relations Technical Support with an issue, please provide the following:
 
 * Your name, company name, telephone number, and e-mail address
 * Product name/version, CB Server version, CB Sensor version
