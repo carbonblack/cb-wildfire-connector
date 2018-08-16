@@ -41,7 +41,7 @@ If you want to re-run the analysis across your binaries:
 ## Contacting Bit9 Developer Relations Support
 
 Web: https://community.bit9.com/groups/developer-relations
-E-mail: dev-support@bit9.com
+E-mail: dev-support@carbonblack.com
 
 ### Reporting Problems
 
